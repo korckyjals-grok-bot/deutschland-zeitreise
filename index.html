@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Deutschland-Zeitreise</title>
+<link rel="stylesheet" href="../shared/styles.css">
+</head>
+<body>
+<div class="wrap">
+<p style="margin:0"><a class="back" href="../sachkunde/" data-app="../sachkunde/">⬅️ Sachkunde</a></p>
+<h1>⏳ Deutschland-Zeitreise</h1>
+<div id="home" class="card">
+<p style="font-size:1.15rem;text-align:center">¡Hola, <span class="nm">amiguito</span>! Steckbrief, Berlin, Sehenswürdigkeiten und Faktencheck. <a href="#" onclick="cambiarNombre();return false" style="font-size:.9rem;color:#2b8de2">✏️ Cambiar apodo</a></p>
+<button class="btn g" onclick="APP.showStudy()">📖 Estudiar</button>
+<div class="topics" id="topics"></div>
+<div class="row">
+<button class="btn" onclick="APP.startPractice()">✏️ Practicar</button>
+<button class="btn o" onclick="APP.startChallenge({timed:true,timeSec:60,count:14})">⏱️ Desafío 60 s</button>
+</div>
+<button class="btn outline" onclick="APP.startChallenge({timed:false,count:14})">🧠 Desafío sin tiempo</button>
+<button class="btn" style="background:#5b4bb7" onclick="APP.startMock()">📝 Prüfungsreise · Mock 24 (todas las apps)</button>
+<p style="text-align:center;font-size:1.05rem">✅ Desafío con <b>13 o más y sin errores</b> = check verde por tema.<br>🏆 Récord: <b id="best">0</b><br><span class="hint" id="covNote"></span></p>
+<div class="note"><b>Laut Arbeitsblatt:</b> cifras 83,02 Mio. / 357.386 km² / 3,7 Mio. Berlin son del material, no estadísticas actuales.<br>
+<b>Nota 8 nov 2026:</b> Friedrich Merz es Bundeskanzler desde 6 may 2025 (no Olaf Scholz). El canciller es jefe de gobierno, no jefe de Estado.</div>
+<button class="btn gray" id="resetProg">🗑️ Borrar avance local</button>
+</div>
+
+<div id="study" class="card hid">
+<h2 id="stTitle"></h2>
+<div id="fc" class="card fc" onclick="APP.flipStudy()"></div>
+<p style="text-align:center">Toca la tarjeta para ver la explicación</p>
+<div class="row"><button class="btn gray" onclick="APP.moveStudy(-1)">⬅️ Anterior</button><button class="btn" onclick="APP.moveStudy(1)">Siguiente ➡️</button></div>
+<button class="btn r" onclick="APP.home()">🏠 Inicio</button>
+</div>
+
+<div id="play" class="card hid">
+<div class="stats"><span>✅ <span id="sc">0</span></span><span>🔥 Racha: <span id="st">0</span></span><span id="cnt"></span></div>
+<div id="tm" class="timer hid"></div>
+<p><span class="tag" id="tg"></span></p>
+<div class="q" id="qt"></div>
+<div id="opts"></div>
+<div id="msg" class="msg"></div>
+<div id="exp" class="exp hid"></div>
+<div id="helpBox" class="help hid"></div>
+<button class="btn outline" id="helpBtn" onclick="APP.revealHelp()">❓ Ayuda</button>
+<button class="btn g hid" id="nx" onclick="APP.goNext()">Siguiente ➡️</button>
+<button class="btn r" onclick="APP.finish(false)">Terminar</button>
+</div>
+
+<div id="sum" class="card hid">
+<h2 id="sumT"></h2>
+<p id="sumP" style="font-size:1.15rem"></p>
+<div id="sumL"></div>
+<button class="btn o hid" id="rep" onclick="APP.repeatErrors()">🔁 Repasar errores</button>
+<button class="btn" onclick="APP.home()">🏠 Inicio</button>
+</div>
+</div>
+
+<div id="nmBox" style="display:none;position:fixed;inset:0;background:rgba(31,42,68,.55);z-index:99;align-items:center;justify-content:center;padding:16px">
+<form id="nmForm" style="background:#fff;border-radius:20px;padding:24px;max-width:420px;width:100%;text-align:center">
+<p style="font-size:1.4rem;font-weight:700;margin:0 0 12px">👋 ¿Cómo te llamas?</p>
+<input id="nmIn" maxlength="20" autocomplete="off" style="width:100%;font-size:1.4rem;padding:12px;border:2px solid #2b8de2;border-radius:12px;text-align:center">
+<button type="submit" style="width:100%;font-size:1.3rem;padding:14px;margin-top:12px;border:0;border-radius:14px;background:#22a35a;color:#fff;font-weight:700">¡Listo! ✅</button>
+</form></div>
+
+<script src="../shared/common.js"></script>
+<script src="../shared/maps.js"></script>
+<script src="../shared/landmarks.js"></script>
+<script src="../shared/engine.js"></script>
+<script>
+function shuffle(a){const x=a.slice();for(let i=x.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[x[i],x[j]]=[x[j],x[i]]}return x}
+function pick(arr,n){return shuffle(arr).slice(0,n)}
+function mockBuilder(bank){
+  const Q=bank.questions.filter(q=>q.required);
+  const by=(pred)=>Q.filter(pred);
+  const rot=JSON.parse(localStorage.getItem("sachkunde_mock_rot")||"{\"n\":[],\"s\":[]}");
+  function preferEntities(list, key, all){
+    const seen=rot[key]||[];
+    const fresh=list.filter(q=>q.entity && !seen.includes(q.entity));
+    const base=fresh.length?fresh:list;
+    const chosen=pick(base, Math.min(all, base.length));
+    chosen.forEach(q=>{if(q.entity && !seen.includes(q.entity))seen.push(q.entity)});
+    if(key==="n" && seen.length>=9) rot.n=[]; else if(key==="n") rot.n=seen;
+    if(key==="s" && seen.length>=16) rot.s=[]; else if(key==="s") rot.s=seen;
+    return chosen;
+  }
+  // Spec: 6 map/landscape/neighbors, 6 states/capitals, 4 history/steckbrief, 4 Berlin/landmarks, 4 factcheck
+  const g1a=preferEntities(by(q=>q.app==="entdecker" && (q.skill==="neighbor_map"||q.skill.startsWith("neighbor_capital"))), "n", 3);
+  const g1b=pick(by(q=>q.app==="entdecker" && (q.type==="map"||q.skill.includes("landscape")||q.skill.includes("island")||q.skill.includes("sea")||q.skill.includes("city")||q.skill.includes("river"))), 3);
+  const g2=preferEntities(by(q=>q.app==="laender" && (q.skill==="state_capital"||q.skill==="state_capital_inverse"||q.skill==="state_map")), "s", 6);
+  const g3=pick(by(q=>q.app==="zeitreise" && (q.skill.includes("brd")||q.skill.includes("reunif")||q.skill.includes("steckbrief")||q.skill.includes("capital")||q.skill.includes("mountain")||q.skill.includes("rhine")||q.skill.includes("lake")||q.skill.includes("worksheet")||q.skill.includes("chancellor")||q.skill.includes("dates")||q.skill==="official_name"||q.skill==="state_count"||q.skill==="highest_mountain"||q.skill==="rhine_domestic_length"||q.skill==="worksheet_lake"||q.skill==="brd_foundation"||q.skill==="reunification")), 4);
+  const g4=pick(by(q=>q.app==="zeitreise" && (q.skill.includes("berlin")||q.skill.includes("landmark")||q.skill.includes("holstentor")||q.skill.includes("wattenmeer")||q.skill.includes("neuschwanstein")||q.skill.includes("dom")||q.skill==="alexanderplatz"||q.skill==="haydn_melody"||q.skill==="gummy_origin"||q.skill==="travel_two_clues"||q.skill==="travel_bavaria")), 4);
+  const g5=pick(by(q=>q.skill && q.skill.startsWith("factcheck_") && q.skill!=="factcheck_solution"), 4);
+  localStorage.setItem("sachkunde_mock_rot", JSON.stringify(rot));
+  let queue=[...g1a,...g1b,...g2,...g3,...g4,...g5];
+  // fill to 24 if short
+  const used=new Set(queue.map(q=>q.id));
+  const filler=shuffle(Q.filter(q=>!used.has(q.id)));
+  while(queue.length<24 && filler.length) queue.push(filler.shift());
+  return shuffle(queue).slice(0,24);
+}
+
+window.APP=SachApp.createApp({
+  appId:"zeitreise",
+  checkKey:"sachkunde_check_zeitreise",
+  bestKey:"sachkunde_zeitreise_best",
+  challengeWin:13,
+  practiceSize:7,
+  challengeSize:14,
+  showObjectiveReport:true,
+  includeOptional:false,
+  masteryEntities:["factcheck_1","factcheck_2","factcheck_3","factcheck_4","factcheck_5","factcheck_6","factcheck_7","factcheck_8","factcheck_9","factcheck_10","factcheck_11","factcheck_12","factcheck_13","factcheck_14","Brandenburger Tor","Reichstagsgebäude","Berliner Fernsehturm","Schloss Neuschwanstein","Kölner Dom","Wattenmeer","Holstentor"],
+  mockBuilder:mockBuilder,
+  topics:[
+    {id:"steck",icon:"📋",label:"Deutschland-Steckbrief",
+      skills:["official_name","brd_foundation","reunification","capital","highest_mountain","mountain_height","rhine_domestic_length","worksheet_lake","worksheet_area","worksheet_population","chancellor_role","current_chancellor","steckbrief_build","units","state_count","neighbor_count","lake_precision","europe_size_reading"],
+      study:[
+        {front:"Offizielle Name",back:"Bundesrepublik Deutschland (BRD)"},
+        {front:"1949 und 1990",back:"1949: Gründung der Bundesrepublik · 1990: Wiedervereinigung. Berlin war auch früher Hauptstadt — nicht „zum ersten Mal 1990“."},
+        {front:"Laut Arbeitsblatt",back:"Fläche 357.386 km² · 83,02 Millionen Einwohner · Bodensee · Rhein (längster Abschnitt in Deutschland) · Zugspitze 2962 m"},
+        {front:"Bundeskanzler",back:"Regierungschef (nicht Staatsoberhaupt). Info 2026-11-08: Friedrich Merz seit 6.5.2025."}
+      ]},
+    {id:"zeit",icon:"📅",label:"Zeitstrahl & Geschichte",
+      skills:["dates_order","berlin_history_sequence","berlin_capital_since","berlin_age_sheet","division_repair"],
+      study:[
+        {front:"Reihenfolge",back:"1949 Bundesrepublik → später Teilung → 1990 Wiedervereinigung"},
+        {front:"Berlin Alter",back:"Laut Arbeitsblatt etwa 800 Jahre (Schulnäherung)."},
+        {front:"Teilung",back:"Zuerst vier Besatzungszonen/Sektoren, danach Ost/West — nicht drei."}
+      ]},
+    {id:"berlin",icon:"🐻",label:"Berlin-Mission",
+      skills:["berlin_city_state","berlin_population_sheet","berlin_nature","berlin_government","alexanderplatz","levels_berlin"],
+      study:[
+        {front:"Berlin",back:"Hauptstadt, Stadt und Bundesland. Regierungsgebäude; dort arbeitet der Bundeskanzler. Reichstag = Bundestag, nicht das Kanzleramt."},
+        {front:"Brandenburger Tor",back:"Tor mit Säulen und Quadriga — in Berlin.",landmark:"Brandenburger Tor"},
+        {front:"Reichstagsgebäude",back:"Parlamentsgebäude mit Kuppel — Bundestag in Berlin.",landmark:"Reichstagsgebäude"},
+        {front:"Berliner Fernsehturm",back:"Hoher Turm mit Kugel — Berlin.",landmark:"Berliner Fernsehturm"}
+      ]},
+    {id:"reise",icon:"🏰",label:"Reisebüro · Sehenswürdigkeiten",
+      skills:["landmark_identification","landmark_location","holstentor_context","neuschwanstein_purpose","neuschwanstein_effort","dom_category","wattenmeer_category","wattenmeer_life","landmark_nature_building","travel_two_clues","travel_bavaria","haydn_melody","gummy_origin"],
+      study:[
+        {front:"Neuschwanstein",back:"Schloss in Bayern, für einen König gebaut.",landmark:"Schloss Neuschwanstein"},
+        {front:"Kölner Dom",back:"Große Kirche in Köln, Nordrhein-Westfalen.",landmark:"Kölner Dom"},
+        {front:"Wattenmeer",back:"Naturgebiet an der Nordsee — kein Gebäude.",landmark:"Wattenmeer"},
+        {front:"Holstentor",back:"Historisches Stadttor in Lübeck.",landmark:"Holstentor"},
+        {front:"Haydn & Gummibärchen",back:"Haydn = Melodie der Nationalhymne. Gummibärchen wurden in Deutschland erfunden."}
+      ]},
+    {id:"fakten",icon:"✔️",label:"Fakten-Detektiv (14 Aussagen)",
+      skills:["factcheck_1","factcheck_2","factcheck_3","factcheck_4","factcheck_5","factcheck_6","factcheck_7","factcheck_8","factcheck_9","factcheck_10","factcheck_11","factcheck_12","factcheck_13","factcheck_14","factcheck_solution"],
+      study:[
+        {front:"Falsch: 82,03 Millionen",back:"Laut Arbeitsblatt 83,02 — und ohnehin eine undatierte Zahl."},
+        {front:"Falsch: dreigeteilt",back:"Vier Zonen/Sektoren zuerst, später Ost/West."},
+        {front:"Falsch: Schweden als Nachbar",back:"Schweden hat keine Landgrenze; Schweiz fehlt in jener Liste."},
+        {front:"Richtig: Haydn-Melodie, Gummibärchen, Holstentor unter Sehenswürdigkeiten",back:"Diese drei nicht vergessen!"}
+      ]},
+    {id:"praes",icon:"🎤",label:"Mini-Präsentation (optional)",
+      skills:["presentation_plan"],
+      study:[
+        {front:"Drei Fakten wählen",back:"Einleitung – Thema – Schluss. Nur Selbstübung; keine Note hier."}
+      ]}
+  ]
+});
+// Mock uses questions from all apps — temporarily allow cross-app in queue by patching byTopic via mockBuilder only
+window.APP.init().catch(e=>{document.body.innerHTML="<p>Error al cargar: "+e.message+"</p>"});
+</script>
+</body></html>
